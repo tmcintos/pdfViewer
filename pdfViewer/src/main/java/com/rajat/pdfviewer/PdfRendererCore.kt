@@ -84,8 +84,6 @@ open class PdfRendererCore(
         }
     }
 
-    private val renderJobs = ConcurrentHashMap<Int, Job>()
-
     fun renderPage(
         pageNo: Int,
         bitmap: Bitmap,
@@ -109,7 +107,6 @@ open class PdfRendererCore(
             return
         }
 
-        renderJobs[pageNo]?.cancel() // Cancel any previous render job
         CoroutineScope(Dispatchers.IO).launch {
 
             var success = false
@@ -157,6 +154,13 @@ open class PdfRendererCore(
     private suspend fun <T> withPdfPage(pageNo: Int, block: (PdfRenderer.Page) -> T): T? =
         withContext(Dispatchers.IO) {
             synchronized(this@PdfRendererCore) {
+                openPages[pageNo]?.let { page ->
+                    return@withContext block(page)
+                }
+
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM)
+                    closeAllOpenPages() // for API < 35 there can be only one
+
                 pdfRenderer.openPage(pageNo).use { page ->
                     return@withContext block(page)
                 }
@@ -194,18 +198,20 @@ open class PdfRendererCore(
                 return it
             }
 
-            return try {
-                val page = pdfRenderer.openPage(pageNo)
-                openPages[pageNo] = page
+            // Keep last 5 pages open for API ≥35, must limit to 1 page for API < 35
+            val maxOpenPages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) 5 else 1
 
-                // ✅ Keep last 5 pages open instead of just 3
-                if (openPages.size > 5) {
-                    val oldestPage = openPages.keys.minOrNull()
-                    oldestPage?.let { oldPage ->
-                        openPages.remove(oldPage)?.close()
-                    }
+            if (openPages.size >= maxOpenPages) {
+                val oldestPage = openPages.keys.minOrNull()
+                oldestPage?.let { oldPage ->
+                    openPages.remove(oldPage)?.close()
                 }
-                page
+            }
+
+            return try {
+                pdfRenderer.openPage(pageNo).also { page ->
+                    openPages[pageNo] = page
+                }
             } catch (e: Exception) {
                 Log.e("PDF_OPEN_TRACKER", "Error opening page $pageNo: ${e.message}", e)
                 null
