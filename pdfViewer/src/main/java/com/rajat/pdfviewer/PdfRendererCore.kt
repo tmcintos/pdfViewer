@@ -11,7 +11,6 @@ import com.rajat.pdfviewer.util.CacheManager
 import com.rajat.pdfviewer.util.CacheStrategy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,7 +30,7 @@ open class PdfRendererCore(
 ) {
 
     private var isRendererOpen = false
-    private val cacheManager = CacheManager(context, cacheIdentifier, cacheStrategy)
+    private val cacheManager = if ( Build.VERSION.SDK_INT > 24 ) CacheManager(context, cacheIdentifier, cacheStrategy) else null
 
     constructor(context: Context, file: File, cacheStrategy: CacheStrategy) : this(
         context = context,
@@ -70,12 +69,12 @@ open class PdfRendererCore(
         isRendererOpen = true
     }
 
-    internal fun getBitmapFromCache(pageNo: Int): Bitmap? = cacheManager.getBitmapFromCache(pageNo)
+    internal fun getBitmapFromCache(pageNo: Int): Bitmap? = cacheManager?.getBitmapFromCache(pageNo)
 
     private fun addBitmapToMemoryCache(pageNo: Int, bitmap: Bitmap) =
-        cacheManager.addBitmapToCache(pageNo, bitmap)
+        cacheManager?.addBitmapToCache(pageNo, bitmap)
 
-    fun pageExistInCache(pageNo: Int): Boolean = cacheManager.pageExistsInCache(pageNo)
+    fun pageExistInCache(pageNo: Int): Boolean = cacheManager?.pageExistsInCache(pageNo) ?: false
 
     fun getPageCount(): Int {
         synchronized(this) {
@@ -86,7 +85,7 @@ open class PdfRendererCore(
 
     fun renderPage(
         pageNo: Int,
-        bitmap: Bitmap,
+        bitmap: Size,
         onBitmapReady: ((success: Boolean, pageNo: Int, bitmap: Bitmap?) -> Unit)? = null
     ) {
         val startTime = System.nanoTime() // ⏱ Start timing
@@ -125,8 +124,28 @@ open class PdfRendererCore(
 
 
                     // ✅ Optimize rendering with scaled resolution when prefetching
-                    val scaleFactor =
-                        if (Thread.currentThread().name.contains("Prefetch")) 0.5f else 1.0f
+//                    val scaleFactor =
+//                        if (Thread.currentThread().name.contains("Prefetch")) 0.5f else 1.0f
+
+                    val currentApiLevel = Build.VERSION.SDK_INT
+
+                    // Determine scale factor (downsampling)
+                    val scaleFactor = when {
+                        currentApiLevel <= Build.VERSION_CODES.N -> {
+                            // API 24 and below: Downsample more aggressively
+                            0.5f // Render at half the size
+                        }
+                        currentApiLevel <= Build.VERSION_CODES.Q ->{
+                            // API 29 and below : Downsample
+                            0.75f
+                        }
+                        else -> {
+                            // API 30+: No or minimal downsampling
+                            // ✅ Optimize rendering with scaled resolution when prefetching
+                            if (Thread.currentThread().name.contains("Prefetch")) 0.5f else 1.0f
+                        }
+                    }
+
                     val width = (bitmap.width * scaleFactor).toInt()
                     val height = (bitmap.height * scaleFactor).toInt()
 

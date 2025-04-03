@@ -6,13 +6,13 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import android.util.LruCache
 import com.rajat.pdfviewer.util.CacheHelper.handleCacheStrategy
-import com.rajat.pdfviewer.util.CommonUtils.Companion.MAX_CACHED_PDFS
 import com.rajat.pdfviewer.util.FileUtils.cachedFileNameWithFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+
 
 class CacheManager(
     context: Context,
@@ -38,9 +38,9 @@ class CacheManager(
 
     private fun createMemoryCache(): LruCache<Int, Bitmap> {
         val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-        val cacheSize = maxMemory / 6
+        val cacheSize = maxMemory / 16
         return object : LruCache<Int, Bitmap>(cacheSize) {
-            override fun sizeOf(key: Int, value: Bitmap): Int = value.byteCount / 1024
+            override fun sizeOf(key: Int, value: Bitmap): Int = value.allocationByteCount / 1024
         }
     }
 

@@ -2,6 +2,7 @@ package com.rajat.pdfviewer.compose
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -19,6 +20,7 @@ fun PdfRendererViewCompose(
     modifier: Modifier = Modifier,
     headers: HeaderData = HeaderData(),
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
+    cacheStrategy: CacheStrategy = if ( Build.VERSION.SDK_INT < 24 ) CacheStrategy.MAXIMIZE_PERFORMANCE else CacheStrategy.MINIMIZE_CACHE,
     statusCallBack: PdfRendererView.StatusCallBack? = null,
 ) {
     AndroidView(
@@ -33,6 +35,7 @@ fun PdfRendererViewCompose(
                 headers = headers,
                 lifecycleCoroutineScope = lifecycleOwner.lifecycleScope,
                 lifecycle = lifecycleOwner.lifecycle,
+                cacheStrategy = cacheStrategy,
             )
         },
         modifier = modifier,
@@ -43,7 +46,7 @@ fun PdfRendererViewCompose(
 fun PdfRendererViewCompose(
     file: File,
     modifier: Modifier = Modifier,
-    cacheStrategy: CacheStrategy = CacheStrategy.MAXIMIZE_PERFORMANCE,
+    cacheStrategy: CacheStrategy = if ( Build.VERSION.SDK_INT < 24 ) CacheStrategy.MAXIMIZE_PERFORMANCE else CacheStrategy.MINIMIZE_CACHE,
     statusCallBack: PdfRendererView.StatusCallBack? = null,
 ) {
     AndroidView(

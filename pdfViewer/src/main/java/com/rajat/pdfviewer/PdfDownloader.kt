@@ -2,9 +2,9 @@ package com.rajat.pdfviewer
 
 import android.content.Context
 import android.util.Log
+import com.rajat.pdfviewer.util.MAX_CACHED_PDFS
 import com.rajat.pdfviewer.util.CacheHelper
 import com.rajat.pdfviewer.util.CacheStrategy
-import com.rajat.pdfviewer.util.CommonUtils.Companion.MAX_CACHED_PDFS
 import com.rajat.pdfviewer.util.FileUtils.getCachedFileName
 import com.rajat.pdfviewer.util.FileUtils.isValidPdf
 import com.rajat.pdfviewer.util.FileUtils.writeFile
@@ -142,7 +142,7 @@ class PdfDownloader(
     private fun makeNetworkRequest(downloadUrl: String): Response {
         val client = OkHttpClient.Builder()
             .followRedirects(true)
-            .followSslRedirects(true)
+            .followSslRedirects(false)
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .build()
 
